@@ -961,9 +961,6 @@
     </section>
   </div>
 
-<!-- Matter.js Physics Engine vía CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-
 <script>
     (function () {
       "use strict";
@@ -1015,45 +1012,54 @@
       };
 
       /* --------------------------------------------------------------------------
-         2. ELEMENTOS DEL DOM
+         2. ELEMENTOS DEL DOM Y ESTADO
          -------------------------------------------------------------------------- */
-      const DOM = {
-        container: document.getElementById("funnel-simulator"),
-        canvas: document.getElementById("funnel-canvas"),
-        slider: document.getElementById("leads-range"),
-        sliderText: document.getElementById("slider-leads-text"),
-        btnHuman: document.getElementById("btn-mode-human"),
-        btnAi: document.getElementById("btn-mode-ai"),
-        statusChip: document.getElementById("live-status-chip"),
-        statusDot: document.getElementById("status-indicator-dot"),
-        statusText: document.getElementById("status-chip-text"),
-        hudAttended: document.getElementById("hud-attended"),
-        hudWaiting: document.getElementById("hud-waiting"),
-        arenaBanner: document.getElementById("arena-cta-banner"),
-        arenaBannerText: document.getElementById("arena-banner-text"),
-        arenaBannerAction: document.getElementById("arena-banner-action"),
-        dashModeIcon: document.getElementById("dash-mode-icon"),
-        dashModeTitle: document.getElementById("dash-mode-title"),
-        dashModeDesc: document.getElementById("dash-mode-desc"),
-        cardRate: document.getElementById("card-rate"),
-        valRate: document.getElementById("val-rate"),
-        badgeRate: document.getElementById("badge-rate"),
-        cardTime: document.getElementById("card-time"),
-        valTime: document.getElementById("val-time"),
-        unitTime: document.getElementById("unit-time"),
-        badgeTime: document.getElementById("badge-time"),
-        cardCapacity: document.getElementById("card-capacity"),
-        valCapacity: document.getElementById("val-capacity"),
-        badgeCapacity: document.getElementById("badge-capacity"),
-        cardImpact: document.getElementById("card-impact"),
-        labelImpact: document.getElementById("label-impact"),
-        valImpact: document.getElementById("val-impact"),
-        unitImpact: document.getElementById("unit-impact"),
-        badgeImpact: document.getElementById("badge-impact"),
-        ctaTitle: document.getElementById("cta-bar-title"),
-        ctaSubtitle: document.getElementById("cta-bar-subtitle"),
-        ctaButton: document.getElementById("main-cta-action")
-      };
+      let DOM = null;
+
+      function populateDOM() {
+        const container = document.getElementById("funnel-simulator");
+        if (!container) return false;
+
+        DOM = {
+          container: container,
+          canvas: document.getElementById("funnel-canvas"),
+          slider: document.getElementById("leads-range"),
+          sliderText: document.getElementById("slider-leads-text"),
+          btnHuman: document.getElementById("btn-mode-human"),
+          btnAi: document.getElementById("btn-mode-ai"),
+          statusChip: document.getElementById("live-status-chip"),
+          statusDot: document.getElementById("status-indicator-dot"),
+          statusText: document.getElementById("status-chip-text"),
+          hudAttended: document.getElementById("hud-attended"),
+          hudWaiting: document.getElementById("hud-waiting"),
+          arenaBanner: document.getElementById("arena-cta-banner"),
+          arenaBannerText: document.getElementById("arena-banner-text"),
+          arenaBannerAction: document.getElementById("arena-banner-action"),
+          dashModeIcon: document.getElementById("dash-mode-icon"),
+          dashModeTitle: document.getElementById("dash-mode-title"),
+          dashModeDesc: document.getElementById("dash-mode-desc"),
+          cardRate: document.getElementById("card-rate"),
+          valRate: document.getElementById("val-rate"),
+          badgeRate: document.getElementById("badge-rate"),
+          cardTime: document.getElementById("card-time"),
+          valTime: document.getElementById("val-time"),
+          unitTime: document.getElementById("unit-time"),
+          badgeTime: document.getElementById("badge-time"),
+          cardCapacity: document.getElementById("card-capacity"),
+          valCapacity: document.getElementById("val-capacity"),
+          badgeCapacity: document.getElementById("badge-capacity"),
+          cardImpact: document.getElementById("card-impact"),
+          labelImpact: document.getElementById("label-impact"),
+          valImpact: document.getElementById("val-impact"),
+          unitImpact: document.getElementById("unit-impact"),
+          badgeImpact: document.getElementById("badge-impact"),
+          ctaTitle: document.getElementById("cta-bar-title"),
+          ctaSubtitle: document.getElementById("cta-bar-subtitle"),
+          ctaButton: document.getElementById("main-cta-action")
+        };
+
+        return !!(DOM.container && DOM.canvas);
+      }
 
       /* --------------------------------------------------------------------------
          3. VARIABLES DEL MOTOR MATTER.JS
@@ -1076,19 +1082,39 @@
          4. INICIALIZACIÓN
          -------------------------------------------------------------------------- */
       function init() {
-        if (!window.Matter) {
-          console.error("Matter.js no cargado");
+        if (!populateDOM()) {
+          console.warn("[Embudo IA] Buscando elementos en el DOM...");
+          setTimeout(init, 80);
           return;
         }
+
+        if (typeof window.Matter === "undefined") {
+          console.error("[Embudo IA] Error: Matter.js no está disponible en window.");
+          return;
+        }
+
+        // Evitar doble inicialización si Elementor dispara múltiples eventos de ciclo de vida
+        if (DOM.container.dataset.simInitialized === "true") {
+          return;
+        }
+        DOM.container.dataset.simInitialized = "true";
 
         ctx = DOM.canvas.getContext("2d", { alpha: false });
         setupMatter();
         setupEventListeners();
+
+        // Obtener dimensiones iniciales de inmediato sin esperar únicamente al observer
+        const arenaEl = DOM.container.querySelector(".sim-arena-wrapper");
+        const initialWidth = DOM.container.clientWidth || (arenaEl ? arenaEl.clientWidth : 0) || 800;
+        const initialHeight = (arenaEl && arenaEl.clientHeight > 0) ? arenaEl.clientHeight : 480;
+        
+        resizeCanvas(initialWidth, initialHeight);
         setupResizeObserver();
         updateDashboardMetrics();
         
         // Loop de renderizado Canvas 60 FPS
         requestAnimationFrame(renderLoop);
+        console.log("[Embudo IA] Simulador inicializado con éxito.");
       }
 
       /* --------------------------------------------------------------------------
@@ -1546,12 +1572,15 @@
          11. RESPONSIVE Y OBSERVER
          -------------------------------------------------------------------------- */
       function setupResizeObserver() {
+        if (!DOM || !DOM.container || typeof ResizeObserver === "undefined") return;
+
         const ro = new ResizeObserver((entries) => {
           for (let entry of entries) {
             const { width } = entry.contentRect;
-            const arenaRect = document.querySelector(".sim-arena-wrapper").getBoundingClientRect();
-            if (width > 0 && arenaRect.height > 0) {
-              resizeCanvas(width, arenaRect.height);
+            const arenaEl = DOM.container.querySelector(".sim-arena-wrapper");
+            const h = (arenaEl && arenaEl.clientHeight > 0) ? arenaEl.clientHeight : 480;
+            if (width > 0 && h > 0) {
+              resizeCanvas(width, h);
             }
           }
         });
@@ -1937,31 +1966,64 @@
         }
       }
 
-      // Función de inicialización segura para Elementor (espera Matter.js si se carga de forma diferida/asíncrona)
-      function ensureMatterAndInit() {
-        if (window.Matter) {
-          init();
+      /* --------------------------------------------------------------------------
+         CARGADOR DINÁMICO DE MATTER.JS E INICIALIZACIÓN MULTI-ENTORNO (WORDPRESS/ELEMENTOR)
+         -------------------------------------------------------------------------- */
+      function loadMatterLib(callback) {
+        // 1. Si ya se cargó a nivel global en WordPress (vía WPCode, Custom Code o functions.php)
+        if (typeof window.Matter !== "undefined") {
+          callback();
           return;
         }
 
-        let attempts = 0;
-        const interval = setInterval(function () {
-          attempts++;
-          if (window.Matter) {
-            clearInterval(interval);
-            init();
-          } else if (attempts > 50) {
-            clearInterval(interval);
-            console.error("Matter.js no se cargó a tiempo en Elementor.");
-          }
-        }, 100);
+        // 2. Si ya hay una inyección en proceso
+        const dynamicId = "matter-js-dynamic-loader";
+        let script = document.getElementById(dynamicId);
+
+        if (script) {
+          let pollTimer = setInterval(function () {
+            if (typeof window.Matter !== "undefined") {
+              clearInterval(pollTimer);
+              callback();
+            }
+          }, 40);
+          setTimeout(() => clearInterval(pollTimer), 10000);
+          return;
+        }
+
+        // 3. Inyección dinámica activa en el head (evita el bloqueo de innerHTML en Elementor)
+        script = document.createElement("script");
+        script.id = dynamicId;
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js";
+        script.async = true;
+        script.onload = function () {
+          console.log("[Embudo IA] Matter.js descargado e inicializado exitosamente.");
+          callback();
+        };
+        script.onerror = function () {
+          console.error("[Embudo IA] Error al descargar Matter.js. Si tu sitio bloquea scripts externos, cárgalo en WordPress globalmente.");
+        };
+
+        (document.head || document.body || document.documentElement).appendChild(script);
       }
 
-      // Iniciar al cargar el documento o de inmediato si el DOM ya está listo en el widget de Elementor
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", ensureMatterAndInit);
-      } else {
-        ensureMatterAndInit();
+      function boot() {
+        loadMatterLib(function () {
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", init);
+          } else {
+            init();
+          }
+        });
       }
+
+      // Ejecución inmediata
+      boot();
+
+      // Soporte para ciclo de renderizado de Elementor Frontend y previews
+      if (window.elementorFrontend && window.elementorFrontend.hooks) {
+        window.elementorFrontend.hooks.addAction("frontend/element_ready/global", boot);
+      }
+      window.addEventListener("load", boot);
     })();
   </script>
