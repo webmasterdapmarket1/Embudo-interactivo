@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Simulador de Eficiencia: Equipo Humano vs. Agente IA | Embudo de Ventas</title>
+  
+  <!-- Fuente Google Fonts (Urbanist + Plus Jakarta Sans para estética SaaS moderna) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Urbanist:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Matter.js Physics Engine vía CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       VARIABLES Y RESET
+       ========================================================================== */
+    :root {
+      --bg-dark: #0B0F19;
+      --bg-card: #121826;
+      --bg-card-subtle: #182234;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(99, 102, 241, 0.3);
+      
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+
+      /* Paleta Modo Humano (Alerta / Cuello de botella) */
+      --human-accent: #F59E0B;
+      --human-accent-glow: rgba(245, 158, 11, 0.25);
+      --human-danger: #EF4444;
+      --human-danger-bg: rgba(239, 68, 68, 0.12);
+
+      /* Paleta Modo IA (Eficiencia / Flujo / High-Tech) */
+      --ai-blue: #0066FF;
+      --ai-purple: #9D4EDD;
+      --ai-cyan: #06B6D4;
+      --ai-green: #10B981;
+      --ai-glow: rgba(157, 78, 221, 0.35);
+      --ai-gradient: linear-gradient(135deg, #0052FF 0%, #9D4EDD 50%, #00F0FF 100%);
+      --ai-gradient-btn: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+      
+      --radius-xl: 24px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      
+      --font-display: 'Urbanist', -apple-system, sans-serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #060911;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.15) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 50%);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 16px;
+      overflow-x: hidden;
+    }
+
+    /* ==========================================================================
+       CONTENEDOR PRINCIPAL (#funnel-simulator)
+       ========================================================================== */
+    #funnel-simulator {
+      width: 100%;
+      max-width: 960px;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      box-shadow: 
+        0 30px 60px -12px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 0 40px -10px rgba(99, 102, 241, 0.15);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(20px);
+    }
+
+    /* Efecto de luz ambiental superior */
+    #funnel-simulator::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      z-index: 20;
+    }
+
+    /* ==========================================================================
+       HEADER Y SLIDER DE VOLUMEN
+       ========================================================================== */
+    .sim-header {
+      padding: 32px 32px 24px;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(18, 24, 38, 0.8) 0%, rgba(11, 15, 25, 0.4) 100%);
+    }
+
+    .badge-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #818CF8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #818CF8;
+      box-shadow: 0 0 8px #818CF8;
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .sim-title {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .sim-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      max-width: 680px;
+    }
+
+    /* Controles de Configuración en Header */
+    .header-controls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .slider-control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .slider-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .slider-value-display {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      color: #38BDF8;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .slider-value-display span {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    /* Estilo del Slider Range Custom */
+    .range-input {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 7px;
+      border-radius: 999px;
+      background: #1E293B;
+      outline: none;
+      transition: background 0.2s ease;
+      cursor: pointer;
+    }
+
+    .range-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #38BDF8;
+      border: 3px solid #0F172A;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+      cursor: pointer;
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .range-input::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .range-input::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #38BDF8;
+      border: 3px solid #0F172A;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    /* Switch de Modos (Humano vs IA) */
+    .mode-switch-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .mode-toggle-pill {
+      display: inline-flex;
+      background: #0F172A;
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 4px;
+      gap: 4px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .mode-btn .icon {
+      font-size: 15px;
+    }
+
+    .mode-btn.active.human-mode {
+      background: var(--human-accent);
+      color: #0F172A;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
+    }
+
+    .mode-btn.active.ai-mode {
+      background: var(--ai-gradient-btn);
+      color: #FFFFFF;
+      box-shadow: 0 4px 15px rgba(124, 58, 237, 0.45);
+    }
+
+    /* ==========================================================================
+       ÁREA DE SIMULACIÓN (CANVAS & OVERLAYS)
+       ========================================================================== */
+    .sim-arena-wrapper {
+      position: relative;
+      width: 100%;
+      height: 480px;
+      background: radial-gradient(circle at 50% 30%, #131B2E 0%, #0B0F19 80%);
+      overflow: hidden;
+    }
+
+    #funnel-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: default;
+    }
+
+    /* HUD Flotante dentro de la arena */
+    .arena-hud-top {
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .live-status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+    }
+
+    .chip-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .chip-indicator.human {
+      background: var(--human-accent);
+      box-shadow: 0 0 8px var(--human-accent);
+    }
+
+    .chip-indicator.ai {
+      background: var(--ai-cyan);
+      box-shadow: 0 0 10px var(--ai-cyan);
+      animation: pulseDot 1.5s infinite;
+    }
+
+    /* Contador en vivo sobre el canvas */
+    .arena-counters-overlay {
+      display: flex;
+      gap: 12px;
+    }
+
+    .stat-pill {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 6px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      backdrop-filter: blur(8px);
+      min-width: 90px;
+    }
+
+    .stat-pill-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      font-weight: 700;
+    }
+
+    .stat-pill-val {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-pill-val.success {
+      color: #34D399;
+    }
+
+    .stat-pill-val.warning {
+      color: #FBBF24;
+    }
+
+    .stat-pill-val.danger {
+      color: #F87171;
+    }
+
+    /* Mensaje guía interactivo flotante en canvas */
+    .arena-banner-cta {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      z-index: 5;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+    }
+
+    .arena-banner-cta:hover {
+      transform: translateX(-50%) translateY(-2px);
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(24, 34, 52, 0.95);
+    }
+
+    .arena-banner-text {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .arena-banner-text strong {
+      color: #FFFFFF;
+    }
+
+    .arena-banner-action {
+      font-size: 12px;
+      font-weight: 800;
+      color: #818CF8;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ==========================================================================
+       PANEL DE RESULTADOS / DASHBOARD
+       ========================================================================== */
+    .sim-dashboard {
+      padding: 28px 32px 32px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .dashboard-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .dash-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dash-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Grilla de Métricas Dinámicas */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .metric-card {
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: transparent;
+      transition: background 0.3s ease;
+    }
+
+    .metric-card.human-state::before {
+      background: var(--human-accent);
+    }
+
+    .metric-card.ai-state::before {
+      background: var(--ai-gradient);
+    }
+
+    .metric-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .metric-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+    }
+
+    .metric-icon {
+      font-size: 16px;
+      opacity: 0.8;
+    }
+
+    .metric-value-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin: 4px 0;
+    }
+
+    .metric-main-value {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+      transition: color 0.3s ease;
+    }
+
+    .metric-unit {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    .metric-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      width: fit-content;
+      transition: all 0.3s ease;
+    }
+
+    .badge-critical {
+      background: rgba(239, 68, 68, 0.15);
+      color: #F87171;
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    .badge-optimal {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .badge-neutral {
+      background: rgba(148, 163, 184, 0.1);
+      color: #94A3B8;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    /* Footer CTA */
+    .dashboard-cta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(124, 58, 237, 0.15) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: var(--radius-lg);
+      padding: 16px 24px;
+      gap: 16px;
+    }
+
+    .cta-message-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .cta-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .cta-subtitle {
+      font-size: 12.5px;
+      color: #CBD5E1;
+    }
+
+    .main-cta-button {
+      background: var(--ai-gradient-btn);
+      color: #FFFFFF;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 18px rgba(124, 58, 237, 0.4);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .main-cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(124, 58, 237, 0.6);
+      filter: brightness(1.1);
+    }
+
+    .main-cta-button svg {
+      transition: transform 0.2s ease;
+    }
+
+    .main-cta-button:hover svg {
+      transform: translateX(3px);
+    }
+
+    /* ==========================================================================
+       RESPONSIVE DESIGN (Tablets y Móviles)
+       ========================================================================== */
+    @media (max-width: 860px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .header-controls {
+        grid-template-columns: 1fr;
+      }
+      .mode-switch-container {
+        align-items: center;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 8px;
+      }
+
+      #funnel-simulator {
+        border-radius: 18px;
+      }
+
+      .sim-header {
+        padding: 20px 18px 16px;
+      }
+
+      .sim-title {
+        font-size: 22px;
+      }
+
+      .sim-subtitle {
+        font-size: 13px;
+      }
+
+      .sim-arena-wrapper {
+        height: 420px;
+      }
+
+      .arena-hud-top {
+        left: 12px;
+        right: 12px;
+        top: 12px;
+        flex-direction: column;
+    gap: 8px;
+      }
+
+      .arena-counters-overlay {
+        gap: 6px;
+      }
+
+      .stat-pill {
+        min-width: 70px;
+        padding: 4px 8px;
+      }
+
+      .stat-pill-val {
+        font-size: 14px;
+      }
+
+      .sim-dashboard {
+        padding: 20px 18px 24px;
+        gap: 18px;
+      }
+
+      .metrics-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .dashboard-cta-bar {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        padding: 16px;
+      }
+
+      .main-cta-button {
+        justify-content: center;
+        width: 100%;
+      }
+
+      .mode-btn {
+        padding: 6px 14px;
+        font-size: 12px;
+      }
+
+      .arena-banner-cta {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COMPONENTE PRINCIPAL -->
+  <main id="funnel-simulator" aria-label="Simulador Interactivo de Eficiencia de Embudo de Ventas">
+    
+    <!-- HEADER CON TÍTULO, CONTROLES DE VOLUMEN Y TOGGLE DE MODO -->
+    <header class="sim-header">
+      <div class="badge-wrap">
+        <div class="badge-dot"></div>
+        <span>Simulador Interactivo B2B</span>
+      </div>
+
+      <h1 class="sim-title">¿Qué tan eficiente es tu equipo gestionando prospectos?</h1>
+      <p class="sim-subtitle">
+        Descubre cómo el tiempo de respuesta humano crea cuellos de botella que queman tus leads, y cómo un Agente IA procesa el 100% de la demanda en segundos.
+      </p>
+
+      <div class="header-controls">
+        <!-- Control de volumen mensual de leads -->
+        <div class="slider-control-group">
+          <div class="slider-header">
+            <label for="leads-range" class="slider-label">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              Volumen mensual de prospectos:
+            </label>
+            <div class="slider-value-display">
+              <span id="slider-leads-text">100</span>
+              <span>leads/mes</span>
+            </div>
+          </div>
+          <input 
+            type="range" 
+            id="leads-range" 
+            class="range-input" 
+            min="20" 
+            max="500" 
+            step="10" 
+            value="100" 
+            aria-label="Volumen mensual de prospectos"
+          >
+        </div>
+
+        <!-- Toggle Selector de Modo (Equipo Humano vs Agente IA) -->
+        <div class="mode-switch-container">
+          <div class="mode-toggle-pill" role="tablist" aria-label="Modo de simulación">
+            <button 
+              id="btn-mode-human" 
+              class="mode-btn active human-mode" 
+              role="tab" 
+              aria-selected="true"
+              title="Ver embudo con Equipo Humano"
+            >
+              <span class="icon">👤</span>
+              <span>Equipo Humano</span>
+            </button>
+            <button 
+              id="btn-mode-ai" 
+              class="mode-btn ai-mode" 
+              role="tab" 
+              aria-selected="false"
+              title="Ver embudo con Agente IA"
+            >
+              <span class="icon">⚡</span>
+              <span>Con Agente IA</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ÁREA DE SIMULACIÓN FÍSICA MATTER.JS -->
+    <section class="sim-arena-wrapper" aria-label="Lienzo de simulación física del embudo">
+      <!-- HUD Superior en vivo -->
+      <div class="arena-hud-top">
+        <div id="live-status-chip" class="live-status-chip">
+          <div id="status-indicator-dot" class="chip-indicator human"></div>
+          <span id="status-chip-text">Modo: Cuello de botella humano</span>
+        </div>
+
+        <div class="arena-counters-overlay">
+          <div class="stat-pill" title="Leads procesados a tiempo">
+            <span class="stat-pill-label">Atendidos</span>
+            <span id="hud-attended" class="stat-pill-val success">0</span>
+          </div>
+          <div class="stat-pill" title="Leads en espera o desbordados">
+            <span class="stat-pill-label">En Cola / Perdidos</span>
+            <span id="hud-waiting" class="stat-pill-val warning">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas de Renderizado Matter.js -->
+      <canvas id="funnel-canvas"></canvas>
+
+      <!-- Banner de acción interactiva flotante -->
+      <div id="arena-cta-banner" class="arena-banner-cta" role="button" tabindex="0">
+        <span class="arena-banner-text" id="arena-banner-text">
+          ⚠️ <strong>El 80% de tus prospectos se atasca</strong> esperando respuesta.
+        </span>
+        <span class="arena-banner-action" id="arena-banner-action">
+          Ver con Agente IA →
+        </span>
+      </div>
+    </section>
+
+    <!-- DASHBOARD DE RESULTADOS Y MÉTRICAS DINÁMICAS -->
+    <section class="sim-dashboard" aria-label="Dashboard de resultados y métricas comparativas">
+      <div class="dashboard-header">
+        <div class="dashboard-title-group">
+          <h2 class="dash-title">
+            <span id="dash-mode-icon">📊</span>
+            <span id="dash-mode-title">Métricas de Rendimiento: Equipo Humano</span>
+          </h2>
+          <p class="dash-desc" id="dash-mode-desc">
+            Diagnóstico de atención con capacidad manual limitada y horarios de oficina.
+          </p>
+        </div>
+      </div>
+
+      <!-- Tarjetas de Métricas -->
+      <div class="metrics-grid">
+        <!-- Tarjeta 1: Tasa de Respuesta Inmediata -->
+        <div class="metric-card human-state" id="card-rate">
+          <div class="metric-card-header">
+            <span class="metric-name">Tasa Atendida a Tiempo</span>
+            <span class="metric-icon">🎯</span>
+          </div>
+          <div class="metric-value-wrap">
+            <span class="metric-main-value" id="val-rate">~20%</span>
+          </div>
+          <div class="metric-badge badge-critical" id="badge-rate">
+            Cuello de botella crítico
+          </div>
+        </div>
+
+        <!-- Tarjeta 2: Tiempo Promedio de Respuesta -->
+        <div class="metric-card human-state" id="card-time">
+          <div class="metric-card-header">
+            <span class="metric-name">Tiempo de Respuesta</span>
+            <span class="metric-icon">⏱️</span>
+          </div>
+          <div class="metric-value-wrap">
+            <span class="metric-main-value" id="val-time">4.2</span>
+            <span class="metric-unit" id="unit-time">horas prom.</span>
+          </div>
+          <div class="metric-badge badge-critical" id="badge-time">
+            80% se enfría o va a la competencia
+          </div>
+        </div>
+
+        <!-- Tarjeta 3: Capacidad Operativa -->
+        <div class="metric-card human-state" id="card-capacity">
+          <div class="metric-card-header">
+            <span class="metric-name">Disponibilidad</span>
+            <span class="metric-icon">🏢</span>
+          </div>
+          <div class="metric-value-wrap">
+            <span class="metric-main-value" id="val-capacity">8 / 5</span>
+            <span class="metric-unit">lunes a viernes</span>
+          </div>
+          <div class="metric-badge badge-neutral" id="badge-capacity">
+            Sin cobertura noches / fines
+          </div>
+        </div>
+
+        <!-- Tarjeta 4: Impacto Económico / Ahorro -->
+        <div class="metric-card human-state" id="card-impact">
+          <div class="metric-card-header">
+            <span class="metric-name" id="label-impact">Leads en Riesgo</span>
+            <span class="metric-icon">💸</span>
+          </div>
+          <div class="metric-value-wrap">
+            <span class="metric-main-value" id="val-impact">80</span>
+            <span class="metric-unit" id="unit-impact">leads perdidos/mes</span>
+          </div>
+          <div class="metric-badge badge-critical" id="badge-impact">
+            Alto costo de oportunidad
+          </div>
+        </div>
+      </div>
+
+      <!-- BARRA DE ACCIÓN / CTA FINAL -->
+      <div class="dashboard-cta-bar">
+        <div class="cta-message-group">
+          <div class="cta-title" id="cta-bar-title">¿Quieres multiplicar la conversión de tu embudo sin contratar más personal?</div>
+          <div class="cta-subtitle" id="cta-bar-subtitle">El Agente IA califica, responde y agenda citas 24/7 en menos de 5 segundos.</div>
+        </div>
+        <a href="#contacto" class="main-cta-button" id="main-cta-action">
+          <span>Automatiza tu embudo con IA</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==========================================================================
+       LÓGICA DEL MOTOR DE SIMULACIÓN Y REACTIVIDAD
+       ========================================================================== -->
+  <script>
+    (function () {
+      "use strict";
+
+      /* --------------------------------------------------------------------------
+         1. ESTADO Y CONFIGURACIÓN GLOBAL
+         -------------------------------------------------------------------------- */
+      const STATE = {
+        mode: "human", // "human" | "ai"
+        monthlyLeads: 100,
+        attendedCount: 0,
+        waitingCount: 0,
+        totalSpawnedInCycle: 0,
+        targetVisualParticles: 45,
+        isTransitioning: false
+      };
+
+      const CONFIG = {
+        colors: {
+          bg: "#0B0F19",
+          wallHuman: "#334155",
+          wallAi: "#6366F1",
+          wallAiGlow: "rgba(99, 102, 241, 0.4)",
+          gateHuman: "#EF4444",
+          gateAi: "#10B981",
+          // Partículas
+          ballHumanBase: "#F59E0B",     // Ámbar / cálido
+          ballHumanStuck: "#EF4444",    // Rojo / lead frío o estancado
+          ballHumanProcessed: "#10B981",// Verde atendido
+          ballAi: "#00F0FF",            // Cyan eléctrico
+          ballAiPurple: "#A855F7",      // Violeta IA
+          ballAiGlow: "rgba(0, 240, 255, 0.5)"
+        },
+        physics: {
+          gravityY: 1.2,
+          restitution: 0.18,
+          friction: 0.15,
+          frictionAir: 0.015,
+          density: 0.003
+        },
+        funnel: {
+          wallThickness: 22,
+          topWidthRatio: 0.88,
+          bottomWidthHuman: 0.11, // Cuello muy angosto para atasco
+          bottomWidthAi: 0.38,    // Cuello abierto / malla de alta velocidad
+          topOffsetRatio: 0.14,
+          bottomOffsetRatio: 0.74
+        }
+      };
+
+      /* --------------------------------------------------------------------------
+         2. ELEMENTOS DEL DOM
+         -------------------------------------------------------------------------- */
+      const DOM = {
+        container: document.getElementById("funnel-simulator"),
+        canvas: document.getElementById("funnel-canvas"),
+        slider: document.getElementById("leads-range"),
+        sliderText: document.getElementById("slider-leads-text"),
+        btnHuman: document.getElementById("btn-mode-human"),
+        btnAi: document.getElementById("btn-mode-ai"),
+        statusChip: document.getElementById("live-status-chip"),
+        statusDot: document.getElementById("status-indicator-dot"),
+        statusText: document.getElementById("status-chip-text"),
+        hudAttended: document.getElementById("hud-attended"),
+        hudWaiting: document.getElementById("hud-waiting"),
+        arenaBanner: document.getElementById("arena-cta-banner"),
+        arenaBannerText: document.getElementById("arena-banner-text"),
+        arenaBannerAction: document.getElementById("arena-banner-action"),
+        dashModeIcon: document.getElementById("dash-mode-icon"),
+        dashModeTitle: document.getElementById("dash-mode-title"),
+        dashModeDesc: document.getElementById("dash-mode-desc"),
+        cardRate: document.getElementById("card-rate"),
+        valRate: document.getElementById("val-rate"),
+        badgeRate: document.getElementById("badge-rate"),
+        cardTime: document.getElementById("card-time"),
+        valTime: document.getElementById("val-time"),
+        unitTime: document.getElementById("unit-time"),
+        badgeTime: document.getElementById("badge-time"),
+        cardCapacity: document.getElementById("card-capacity"),
+        valCapacity: document.getElementById("val-capacity"),
+        badgeCapacity: document.getElementById("badge-capacity"),
+        cardImpact: document.getElementById("card-impact"),
+        labelImpact: document.getElementById("label-impact"),
+        valImpact: document.getElementById("val-impact"),
+        unitImpact: document.getElementById("unit-impact"),
+        badgeImpact: document.getElementById("badge-impact"),
+        ctaTitle: document.getElementById("cta-bar-title"),
+        ctaSubtitle: document.getElementById("cta-bar-subtitle"),
+        ctaButton: document.getElementById("main-cta-action")
+      };
+
+      /* --------------------------------------------------------------------------
+         3. VARIABLES DEL MOTOR MATTER.JS
+         -------------------------------------------------------------------------- */
+      let engine = null;
+      let world = null;
+      let runner = null;
+      let ctx = null;
+      let currentWidth = 0;
+      let currentHeight = 0;
+      let dpr = 1;
+
+      let balls = [];
+      let funnelBodies = [];
+      let particleVfx = [];
+      let emitterTimer = null;
+      let isSpawning = false;
+
+      /* --------------------------------------------------------------------------
+         4. INICIALIZACIÓN
+         -------------------------------------------------------------------------- */
+      function init() {
+        if (!window.Matter) {
+          console.error("Matter.js no cargado");
+          return;
+        }
+
+        ctx = DOM.canvas.getContext("2d", { alpha: false });
+        setupMatter();
+        setupEventListeners();
+        setupResizeObserver();
+        updateDashboardMetrics();
+        
+        // Loop de renderizado Canvas 60 FPS
+        requestAnimationFrame(renderLoop);
+      }
+
+      /* --------------------------------------------------------------------------
+         5. CONFIGURACIÓN DEL MUNDO MATTER.JS
+         -------------------------------------------------------------------------- */
+      function setupMatter() {
+        const { Engine, World, Runner, Events } = Matter;
+
+        engine = Engine.create({
+          enableSleeping: false,
+          positionIterations: 10,
+          velocityIterations: 10
+        });
+
+        world = engine.world;
+        world.gravity.y = CONFIG.physics.gravityY;
+        world.gravity.x = 0;
+
+        runner = Runner.create({
+          isFixed: true,
+          delta: 1000 / 60
+        });
+
+        Runner.run(runner, engine);
+
+        // Seguridad y procesado de esferas tras cada ciclo físico
+        Events.on(engine, "afterUpdate", () => {
+          const exitThreshold = currentHeight * (CONFIG.funnel.bottomOffsetRatio + 0.05);
+
+          for (let i = balls.length - 1; i >= 0; i--) {
+            const ball = balls[i];
+            
+            // Si la bola cayó por debajo del cuello (zona de salida / atendido)
+            if (ball.position.y > exitThreshold && !ball.plugin.isProcessed) {
+              ball.plugin.isProcessed = true;
+              STATE.attendedCount++;
+              createAttendedEffect(ball.position.x, ball.position.y, ball.plugin.color);
+              updateLiveHUD();
+            }
+
+            // Si la bola ya salió completamente de la pantalla
+            if (ball.position.y > currentHeight + 40 || ball.position.x < -60 || ball.position.x > currentWidth + 60) {
+              World.remove(world, ball);
+              balls.splice(i, 1);
+              updateLiveHUD();
+            } else {
+              // En modo humano, si una bola lleva mucho tiempo estancada arriba, se torna roja/alerta
+              if (STATE.mode === "human" && !ball.plugin.isProcessed) {
+                const age = performance.now() - ball.plugin.bornAt;
+                if (age > 2800 && ball.plugin.color !== CONFIG.colors.ballHumanStuck) {
+                  ball.plugin.color = CONFIG.colors.ballHumanStuck;
+                }
+              }
+            }
+          }
+
+          // Calcular leads esperando/atascados
+          if (STATE.mode === "human") {
+            STATE.waitingCount = balls.filter(b => !b.plugin.isProcessed).length;
+          } else {
+            STATE.waitingCount = 0;
+          }
+          updateLiveHUD();
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+         6. CONSTRUCCIÓN DE CUERPOS FÍSICOS (EMBUDO + GUÍAS)
+         -------------------------------------------------------------------------- */
+      function buildFunnelGeometry() {
+        const { Bodies, Composite } = Matter;
+
+        if (funnelBodies.length > 0) {
+          Composite.remove(world, funnelBodies);
+          funnelBodies = [];
+        }
+
+        const W = currentWidth;
+        const H = currentHeight;
+        const T = CONFIG.funnel.wallThickness;
+        const isAi = STATE.mode === "ai";
+        const isMobile = W < 550;
+
+        const topY = H * CONFIG.funnel.topOffsetRatio;
+        const bottomY = H * CONFIG.funnel.bottomOffsetRatio;
+        
+        const topWidth = W * CONFIG.funnel.topWidthRatio;
+        const leftX1 = (W - topWidth) / 2;
+        const rightX1 = W - leftX1;
+
+        // En modo humano cuello estrecho (atasco con goteo 1 a 1), en modo IA cuello abierto
+        const ballRadius = isMobile ? 12 : 14.5;
+        const ballDiameter = ballRadius * 2;
+        const pegRadius = isMobile ? 10 : 12;
+
+        let bottomWidth;
+        if (isAi) {
+          bottomWidth = W * CONFIG.funnel.bottomWidthAi;
+        } else {
+          // Tomar en cuenta el grosor físico de las paredes (T=22) para que el paso neto no se estrangule en móvil
+          const minSideGap = Math.max(ballDiameter * 1.15, ballDiameter + (isMobile ? 10 : 12));
+          const minBottomWidth = (minSideGap * 2) + (pegRadius * 2);
+          bottomWidth = Math.max(W * (isMobile ? 0.20 : 0.13), minBottomWidth);
+        }
+
+        const leftX2 = (W - bottomWidth) / 2;
+        const rightX2 = W - leftX2;
+
+        function createWall(x1, y1, x2, y2, thickness, label) {
+          const cx = (x1 + x2) / 2;
+          const cy = (y1 + y2) / 2;
+          const length = Math.hypot(x2 - x1, y2 - y1);
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+
+          return Bodies.rectangle(cx, cy, length, thickness, {
+            isStatic: true,
+            angle: angle,
+            friction: isAi ? 0.02 : 0.05,
+            restitution: isAi ? 0.4 : 0.18,
+            label: label,
+            plugin: { x1, y1, x2, y2, length }
+          });
+        }
+
+        // 1. Paredes inclinadas del embudo
+        const leftSlope = createWall(leftX1, topY, leftX2, bottomY, T, "funnel_wall_left");
+        const rightSlope = createWall(rightX1, topY, rightX2, bottomY, T, "funnel_wall_right");
+
+        // 2. Obstáculo / Cuello humano (en modo humano, obstáculo central que fuerza el goteo 1 a 1)
+        let neckObstacles = [];
+        if (!isAi) {
+          const peg = Bodies.circle(W / 2, bottomY - 12, pegRadius, {
+            isStatic: true,
+            friction: 0.04,
+            restitution: 0.25,
+            label: "human_peg",
+            plugin: { isPeg: true, circleRadius: pegRadius }
+          });
+          neckObstacles.push(peg);
+        }
+
+        // 3. Guías superiores invisibles de embudo para evitar que las esferas salten afuera
+        const leftHopper = Bodies.rectangle(leftX1 - 20, topY - 250, 40, 500, { isStatic: true, label: "guard" });
+        const rightHopper = Bodies.rectangle(rightX1 + 20, topY - 250, 40, 500, { isStatic: true, label: "guard" });
+        const ceiling = Bodies.rectangle(W / 2, -200, W * 2, 40, { isStatic: true, label: "guard" });
+
+        funnelBodies = [leftSlope, rightSlope, ...neckObstacles, leftHopper, rightHopper, ceiling];
+        Composite.add(world, funnelBodies);
+      }
+
+      /* --------------------------------------------------------------------------
+         7. EMISOR CONTINUO DE LEADS (ESFERAS)
+         -------------------------------------------------------------------------- */
+      function startLeadStream() {
+        const { Bodies, Composite } = Matter;
+
+        if (emitterTimer) {
+          clearInterval(emitterTimer);
+          emitterTimer = null;
+        }
+
+        // Limpiar esferas actuales
+        if (balls.length > 0) {
+          Composite.remove(world, balls);
+          balls = [];
+        }
+
+        STATE.attendedCount = 0;
+        STATE.waitingCount = 0;
+        STATE.totalSpawnedInCycle = 0;
+        updateLiveHUD();
+
+        // Determinar cantidad de esferas a emitir en base al slider y viewport
+        const isMobile = currentWidth < 550;
+        const maxBalls = Math.min(
+          Math.round(STATE.monthlyLeads * (isMobile ? 0.35 : 0.6)),
+          isMobile ? 55 : 110
+        );
+
+        const spawnY = currentHeight * CONFIG.funnel.topOffsetRatio - 20;
+        const spawnCenterX = currentWidth / 2;
+        const radius = isMobile ? 12 : 14.5;
+        const isAi = STATE.mode === "ai";
+
+        isSpawning = true;
+        let spawned = 0;
+
+        const intervalMs = isAi ? 38 : 55; // IA emite y fluye más rápido
+
+        emitterTimer = setInterval(() => {
+          if (spawned >= maxBalls) {
+            clearInterval(emitterTimer);
+            emitterTimer = null;
+            isSpawning = false;
+
+            // En modo IA, si terminan de caer todas, reiniciar suavemente el flujo continuo
+            if (isAi) {
+              setTimeout(() => {
+                if (STATE.mode === "ai") startLeadStream();
+              }, 2200);
+            }
+            return;
+          }
+
+          // Variación en spawn horizontal
+          const spawnSpread = currentWidth * 0.45;
+          const x = spawnCenterX + (Math.random() - 0.5) * spawnSpread;
+          const y = spawnY + (Math.random() - 0.5) * 12;
+
+          let color;
+          if (isAi) {
+            color = Math.random() > 0.4 ? CONFIG.colors.ballAi : CONFIG.colors.ballAiPurple;
+          } else {
+            color = CONFIG.colors.ballHumanBase;
+          }
+
+          const ball = Bodies.circle(x, y, radius, {
+            restitution: isAi ? 0.35 : 0.18,
+            friction: isAi ? 0.01 : 0.1,
+            frictionAir: isAi ? 0.008 : 0.012,
+            density: CONFIG.physics.density,
+            label: "lead_ball",
+            plugin: {
+              radius: radius,
+              color: color,
+              bornAt: performance.now(),
+              isProcessed: false,
+              trail: []
+            }
+          });
+
+          // Velocidad inicial
+          Matter.Body.setVelocity(ball, {
+            x: (Math.random() - 0.5) * (isAi ? 1.5 : 1.2),
+            y: isAi ? 3.0 + Math.random() * 2.0 : 1.5 + Math.random() * 1.0
+          });
+
+          balls.push(ball);
+          Composite.add(world, ball);
+          spawned++;
+          STATE.totalSpawnedInCycle = spawned;
+
+          updateLiveHUD();
+        }, intervalMs);
+      }
+
+      /* --------------------------------------------------------------------------
+         8. EFECTOS VISUALES (BURST / DESVANECIMIENTO / CHISPAS)
+         -------------------------------------------------------------------------- */
+      function createAttendedEffect(x, y, color) {
+        const count = STATE.mode === "ai" ? 8 : 4;
+        const now = performance.now();
+
+        particleVfx.push({
+          type: "ring",
+          x: x,
+          y: y,
+          startR: 10,
+          maxR: 32,
+          color: STATE.mode === "ai" ? "#00F0FF" : "#10B981",
+          born: now,
+          duration: 350
+        });
+
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5);
+          const speed = 1.5 + Math.random() * 2.5;
+          particleVfx.push({
+            type: "spark",
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed + (STATE.mode === "ai" ? 1.5 : 0.5),
+            radius: 2 + Math.random() * 1.5,
+            color: color,
+            born: now,
+            duration: 400
+          });
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         9. ACTUALIZACIÓN DE HUD Y DASHBOARD REACTIVO
+         -------------------------------------------------------------------------- */
+      function updateLiveHUD() {
+        if (DOM.hudAttended) {
+          DOM.hudAttended.textContent = STATE.attendedCount;
+        }
+        if (DOM.hudWaiting) {
+          DOM.hudWaiting.textContent = STATE.waitingCount;
+        }
+      }
+
+      function switchMode(newMode) {
+        if (STATE.mode === newMode && !STATE.isTransitioning) return;
+        STATE.mode = newMode;
+        STATE.isTransitioning = true;
+
+        // Actualizar UI de botones
+        if (newMode === "ai") {
+          DOM.btnHuman.classList.remove("active");
+          DOM.btnAi.classList.add("active");
+          DOM.btnAi.setAttribute("aria-selected", "true");
+          DOM.btnHuman.setAttribute("aria-selected", "false");
+
+          DOM.statusDot.className = "chip-indicator ai";
+          DOM.statusText.textContent = "Modo: Flujo continuo con Agente IA 24/7";
+
+          DOM.arenaBannerText.innerHTML = `✨ <strong>Capacidad 100% automatizada</strong>. Cero prospectos perdidos.`;
+          DOM.arenaBannerAction.innerHTML = `Comparar con Humano ↺`;
+        } else {
+          DOM.btnAi.classList.remove("active");
+          DOM.btnHuman.classList.add("active");
+          DOM.btnHuman.setAttribute("aria-selected", "true");
+          DOM.btnAi.setAttribute("aria-selected", "false");
+
+          DOM.statusDot.className = "chip-indicator human";
+          DOM.statusText.textContent = "Modo: Cuello de botella humano";
+
+          DOM.arenaBannerText.innerHTML = `⚠️ <strong>El 80% de tus prospectos se atasca</strong> esperando respuesta.`;
+          DOM.arenaBannerAction.innerHTML = `Ver con Agente IA →`;
+        }
+
+        // Reconstruir geometría del embudo (abrir cuello o cerrarlo)
+        buildFunnelGeometry();
+
+        // En modo IA, acelerar todas las bolas existentes con un impulso
+        if (newMode === "ai") {
+          balls.forEach(b => {
+            b.friction = 0.01;
+            b.plugin.color = Math.random() > 0.5 ? CONFIG.colors.ballAi : CONFIG.colors.ballAiPurple;
+            Matter.Body.setVelocity(b, {
+              x: (Math.random() - 0.5) * 2,
+              y: Math.max(b.velocity.y, 4.0)
+            });
+          });
+        }
+
+        // Reiniciar flujo continuo
+        startLeadStream();
+        updateDashboardMetrics();
+
+        setTimeout(() => {
+          STATE.isTransitioning = false;
+        }, 300);
+      }
+
+      function updateDashboardMetrics() {
+        const leads = STATE.monthlyLeads;
+        const isAi = STATE.mode === "ai";
+
+        // Estilos de tarjetas (clase de borde/glow)
+        const cards = [DOM.cardRate, DOM.cardTime, DOM.cardCapacity, DOM.cardImpact];
+        cards.forEach(c => {
+          c.className = `metric-card ${isAi ? "ai-state" : "human-state"}`;
+        });
+
+        if (!isAi) {
+          // ================= MODO HUMANO =================
+          DOM.dashModeIcon.textContent = "⚠️";
+          DOM.dashModeTitle.textContent = "Métricas de Rendimiento: Equipo Humano";
+          DOM.dashModeDesc.textContent = "Diagnóstico de atención con capacidad manual limitada y horarios de oficina.";
+
+          DOM.valRate.textContent = "~20%";
+          DOM.valRate.style.color = "#F59E0B";
+          DOM.badgeRate.className = "metric-badge badge-critical";
+          DOM.badgeRate.textContent = "Cuello de botella crítico";
+
+          DOM.valTime.textContent = "4.2";
+          DOM.unitTime.textContent = "horas prom.";
+          DOM.valTime.style.color = "#F87171";
+          DOM.badgeTime.className = "metric-badge badge-critical";
+          DOM.badgeTime.textContent = "80% se enfría o se va";
+
+          DOM.valCapacity.textContent = "8 / 5";
+          DOM.valCapacity.style.color = "#94A3B8";
+          DOM.badgeCapacity.className = "metric-badge badge-neutral";
+          DOM.badgeCapacity.textContent = "Sin cobertura noches / fines";
+
+          // Leads en riesgo calculados
+          const lostLeads = Math.round(leads * 0.8);
+          DOM.labelImpact.textContent = "Prospectos en Riesgo";
+          DOM.valImpact.textContent = lostLeads.toString();
+          DOM.unitImpact.textContent = "leads perdidos/mes";
+          DOM.valImpact.style.color = "#EF4444";
+          DOM.badgeImpact.className = "metric-badge badge-critical";
+          DOM.badgeImpact.textContent = `Pérdida del ~80% de captación`;
+
+          DOM.ctaTitle.textContent = "¿Quieres multiplicar la conversión de tu embudo sin contratar más personal?";
+          DOM.ctaSubtitle.textContent = "El Agente IA califica, responde y agenda citas 24/7 en menos de 5 segundos.";
+        } else {
+          // ================= MODO IA =================
+          DOM.dashModeIcon.textContent = "⚡";
+          DOM.dashModeTitle.textContent = "Métricas de Rendimiento: Con Agente IA";
+          DOM.dashModeDesc.textContent = "Procesamiento en tiempo real, calificación automática y agendamiento 24/7.";
+
+          DOM.valRate.textContent = "100%";
+          DOM.valRate.style.color = "#34D399";
+          DOM.badgeRate.className = "metric-badge badge-optimal";
+          DOM.badgeRate.textContent = "Flujo óptimo continuo";
+
+          DOM.valTime.textContent = "< 5";
+          DOM.unitTime.textContent = "segundos";
+          DOM.valTime.style.color = "#38BDF8";
+          DOM.badgeTime.className = "metric-badge badge-optimal";
+          DOM.badgeTime.textContent = "Respuesta inmediata instantánea";
+
+          DOM.valCapacity.textContent = "24 / 7";
+          DOM.valCapacity.style.color = "#A855F7";
+          DOM.badgeCapacity.className = "metric-badge badge-optimal";
+          DOM.badgeCapacity.textContent = "Disponibilidad total 365 días";
+
+          // Ahorro operativo / Ingresos recuperados dinámicos
+          const hoursSaved = Math.round(leads * 0.4); // 24 min por lead en calificar + follow up
+          const estimatedValue = Math.round(leads * 0.8 * 65); // $65 valor estimado recuperado
+          
+          DOM.labelImpact.textContent = "Ahorro e Impacto";
+          DOM.valImpact.textContent = `+${hoursSaved}h`;
+          DOM.unitImpact.textContent = `ahorradas ($${estimatedValue.toLocaleString()} USD valor)`;
+          DOM.valImpact.style.color = "#10B981";
+          DOM.badgeImpact.className = "metric-badge badge-optimal";
+          DOM.badgeImpact.textContent = "100% de demanda capturada";
+
+          DOM.ctaTitle.textContent = "Tu embudo listo para escalar sin límites operativos";
+          DOM.ctaSubtitle.textContent = "Conecta el Agente IA a tu CRM, WhatsApp y landing page en minutos.";
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         10. EVENT LISTENERS
+         -------------------------------------------------------------------------- */
+      function setupEventListeners() {
+        // Slider de Leads
+        DOM.slider.addEventListener("input", (e) => {
+          STATE.monthlyLeads = parseInt(e.target.value, 10);
+          DOM.sliderText.textContent = STATE.monthlyLeads;
+          updateDashboardMetrics();
+        });
+
+        DOM.slider.addEventListener("change", () => {
+          startLeadStream();
+        });
+
+        // Botones de Modo
+        DOM.btnHuman.addEventListener("click", () => switchMode("human"));
+        DOM.btnAi.addEventListener("click", () => switchMode("ai"));
+
+        // Banner CTA dentro del Canvas
+        DOM.arenaBanner.addEventListener("click", () => {
+          switchMode(STATE.mode === "human" ? "ai" : "human");
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+         11. RESPONSIVE Y OBSERVER
+         -------------------------------------------------------------------------- */
+      function setupResizeObserver() {
+        const ro = new ResizeObserver((entries) => {
+          for (let entry of entries) {
+            const { width } = entry.contentRect;
+            const arenaRect = document.querySelector(".sim-arena-wrapper").getBoundingClientRect();
+            if (width > 0 && arenaRect.height > 0) {
+              resizeCanvas(width, arenaRect.height);
+            }
+          }
+        });
+        ro.observe(DOM.container);
+      }
+
+      function resizeCanvas(width, height) {
+        currentWidth = width;
+        currentHeight = height;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        DOM.canvas.width = Math.round(width * dpr);
+        DOM.canvas.height = Math.round(height * dpr);
+        DOM.canvas.style.width = width + "px";
+        DOM.canvas.style.height = height + "px";
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+
+        buildFunnelGeometry();
+        startLeadStream();
+      }
+
+      /* --------------------------------------------------------------------------
+         12. LOOP DE RENDERIZADO PERSONALIZADO (CANVAS 60 FPS)
+         -------------------------------------------------------------------------- */
+      function renderLoop() {
+        requestAnimationFrame(renderLoop);
+
+        // 1. Limpiar fondo
+        ctx.fillStyle = CONFIG.colors.bg;
+        ctx.fillRect(0, 0, currentWidth, currentHeight);
+
+        // 2. Fondo tecnológico sutil (malla / guías)
+        drawArenaBackground();
+
+        // 3. Dibujar Embudo (Paredes, luces y cuello)
+        drawFunnel();
+
+        // 4. Dibujar Esferas (Leads)
+        drawLeads();
+
+        // 5. Dibujar Partículas y Efectos
+        drawVfx();
+
+        // 6. Dibujar Etiquetas de Etapas en PRIMER PLANO (Frente / Capa Superior)
+        drawStageLabels();
+      }
+
+      function drawArenaBackground() {
+        ctx.save();
+        const W = currentWidth;
+        const H = currentHeight;
+        const isAi = STATE.mode === "ai";
+
+        // Rayos o gradiente de energía central
+        const grad = ctx.createRadialGradient(W / 2, H * 0.4, 10, W / 2, H * 0.4, W * 0.6);
+        if (isAi) {
+          grad.addColorStop(0, "rgba(99, 102, 241, 0.12)");
+          grad.addColorStop(0.6, "rgba(6, 182, 212, 0.05)");
+          grad.addColorStop(1, "transparent");
+        } else {
+          grad.addColorStop(0, "rgba(245, 158, 11, 0.07)");
+          grad.addColorStop(0.6, "rgba(239, 68, 68, 0.03)");
+          grad.addColorStop(1, "transparent");
+        }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Líneas horizontales de etapas del embudo
+        ctx.strokeStyle = isAi ? "rgba(99, 102, 241, 0.25)" : "rgba(255, 255, 255, 0.08)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+
+        const topY = H * CONFIG.funnel.topOffsetRatio;
+        const bottomY = H * CONFIG.funnel.bottomOffsetRatio;
+
+        const stage1Y = topY + (bottomY - topY) * 0.35;
+        const stage2Y = topY + (bottomY - topY) * 0.70;
+
+        ctx.beginPath();
+        ctx.moveTo(W * 0.05, stage1Y);
+        ctx.lineTo(W * 0.95, stage1Y);
+        ctx.moveTo(W * 0.05, stage2Y);
+        ctx.lineTo(W * 0.95, stage2Y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.restore();
+      }
+
+      function drawFunnel() {
+        ctx.save();
+        const isAi = STATE.mode === "ai";
+        const T = CONFIG.funnel.wallThickness;
+
+        for (let body of funnelBodies) {
+          if (body.label === "guard") continue;
+
+          // Dibujar obstáculo humano central si existe
+          if (body.plugin && body.plugin.isPeg) {
+            ctx.beginPath();
+            ctx.arc(body.position.x, body.position.y, body.circleRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#EF4444";
+            ctx.shadowColor = "rgba(239, 68, 68, 0.6)";
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Icono de candado / cuello estrecho
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "900 10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("✕", body.position.x, body.position.y + 0.5);
+            continue;
+          }
+
+          if (!body.plugin || !body.plugin.x1) continue;
+          const { x1, y1, x2, y2 } = body.plugin;
+
+          // Resplandor de pared
+          if (isAi) {
+            ctx.strokeStyle = CONFIG.colors.wallAiGlow;
+            ctx.lineWidth = T + 10;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          }
+
+          // Pared sólida
+          ctx.strokeStyle = isAi ? CONFIG.colors.wallAi : CONFIG.colors.wallHuman;
+          ctx.lineWidth = T;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+
+          // Detalle de línea interna brillante
+          ctx.strokeStyle = isAi ? "rgba(6, 182, 212, 0.8)" : "rgba(255, 255, 255, 0.15)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+
+        // Zona inferior de salida / Calificación
+        const bottomY = currentHeight * CONFIG.funnel.bottomOffsetRatio;
+        const centerX = currentWidth / 2;
+
+        if (isAi) {
+          // Luz de canal abierto de alta velocidad
+          const beamGrad = ctx.createLinearGradient(0, bottomY - 10, 0, currentHeight);
+          beamGrad.addColorStop(0, "rgba(6, 182, 212, 0.3)");
+          beamGrad.addColorStop(1, "rgba(157, 78, 221, 0.0)");
+          ctx.fillStyle = beamGrad;
+          ctx.fillRect(centerX - 60, bottomY, 120, currentHeight - bottomY);
+
+          // Flecha de flujo continuo
+          ctx.fillStyle = "#06B6D4";
+          ctx.beginPath();
+          ctx.moveTo(centerX - 10, bottomY + 20);
+          ctx.lineTo(centerX + 10, bottomY + 20);
+          ctx.lineTo(centerX, bottomY + 32);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          // Indicador de bloqueo / goteo lento
+          ctx.fillStyle = "rgba(239, 68, 68, 0.8)";
+          ctx.font = "700 10px 'Plus Jakarta Sans', sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("⬇ GOTEO LENTO (1 A 1)", centerX, bottomY + 24);
+        }
+
+        ctx.restore();
+      }
+
+      function drawLeads() {
+        ctx.save();
+        const isAi = STATE.mode === "ai";
+
+        for (let i = 0; i < balls.length; i++) {
+          const ball = balls[i];
+          const pos = ball.position;
+          const r = ball.plugin.radius;
+          const color = ball.plugin.color;
+
+          // Sombra de contacto
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y + r * 0.2, r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+          ctx.fill();
+
+          // Cuerpo de la esfera
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+
+          const grad = ctx.createRadialGradient(
+            pos.x - r * 0.3,
+            pos.y - r * 0.3,
+            r * 0.1,
+            pos.x,
+            pos.y,
+            r
+          );
+
+          if (isAi) {
+            if (color === CONFIG.colors.ballAi) {
+              grad.addColorStop(0, "#E0FFFF");
+              grad.addColorStop(0.5, "#00F0FF");
+              grad.addColorStop(1, "#0066FF");
+            } else {
+              grad.addColorStop(0, "#F3E8FF");
+              grad.addColorStop(0.5, "#C084FC");
+              grad.addColorStop(1, "#7E22CE");
+            }
+          } else {
+            if (color === CONFIG.colors.ballHumanStuck) {
+              grad.addColorStop(0, "#FCA5A5");
+              grad.addColorStop(0.5, "#EF4444");
+              grad.addColorStop(1, "#991B1B");
+            } else {
+              grad.addColorStop(0, "#FDE68A");
+              grad.addColorStop(0.5, "#F59E0B");
+              grad.addColorStop(1, "#B45309");
+            }
+          }
+
+          ctx.fillStyle = grad;
+          ctx.fill();
+
+          // Brillo superior tipo esfera 3D
+          ctx.beginPath();
+          ctx.arc(pos.x - r * 0.3, pos.y - r * 0.3, r * 0.28, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+          ctx.fill();
+
+          // En modo IA, agregar resplandor suave
+          if (isAi) {
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+
+        ctx.restore();
+      }
+
+      function drawVfx() {
+        if (particleVfx.length === 0) return;
+
+        const now = performance.now();
+        ctx.save();
+
+        for (let i = particleVfx.length - 1; i >= 0; i--) {
+          const p = particleVfx[i];
+          const elapsed = now - p.born;
+          const progress = elapsed / p.duration;
+
+          if (progress >= 1) {
+            particleVfx.splice(i, 1);
+            continue;
+          }
+
+          const alpha = 1 - progress;
+
+          if (p.type === "ring") {
+            const curR = p.startR + (p.maxR - p.startR) * Math.sin((progress * Math.PI) / 2);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, curR, 0, Math.PI * 2);
+            ctx.strokeStyle = p.color;
+            ctx.globalAlpha = alpha * 0.7;
+            ctx.lineWidth = 2.5 * (1 - progress);
+            ctx.stroke();
+          } else if (p.type === "spark") {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.06;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius * (1 - progress * 0.5), 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha;
+            ctx.fill();
+          }
+        }
+
+        ctx.restore();
+      }
+
+      /* --------------------------------------------------------------------------
+         13. DIBUJO DE ETIQUETAS DE ETAPAS EN PRIMER PLANO (TOP LAYER)
+         -------------------------------------------------------------------------- */
+      function drawStageLabels() {
+        ctx.save();
+        const W = currentWidth;
+        const H = currentHeight;
+        const isAi = STATE.mode === "ai";
+        const isMobile = W < 550;
+
+        const topY = H * CONFIG.funnel.topOffsetRatio;
+        const bottomY = H * CONFIG.funnel.bottomOffsetRatio;
+
+        const stage1Y = topY + (bottomY - topY) * 0.35;
+        const stage2Y = topY + (bottomY - topY) * 0.70;
+
+        const fontHeight = isMobile ? 10 : 11;
+        ctx.font = `800 ${fontHeight}px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif`;
+
+        const stages = [
+          {
+            text: "📥 ETAPA 1: CAPTACIÓN Y LLEGADA",
+            x: isMobile ? 10 : Math.max(16, W * 0.08),
+            y: stage1Y - (isMobile ? 13 : 15),
+            theme: isAi
+              ? { bg: "rgba(11, 15, 25, 0.88)", border: "rgba(56, 189, 248, 0.7)", text: "#38BDF8", glow: "rgba(56, 189, 248, 0.5)" }
+              : { bg: "rgba(11, 15, 25, 0.88)", border: "rgba(245, 158, 11, 0.7)", text: "#FBBF24", glow: "rgba(245, 158, 11, 0.4)" }
+          },
+          {
+            text: "⚡ ETAPA 2: CALIFICACIÓN Y FILTRADO",
+            x: isMobile ? 10 : Math.max(16, W * 0.12),
+            y: stage2Y - (isMobile ? 13 : 15),
+            theme: isAi
+              ? { bg: "rgba(11, 15, 25, 0.88)", border: "rgba(192, 132, 252, 0.7)", text: "#C084FC", glow: "rgba(192, 132, 252, 0.5)" }
+              : { bg: "rgba(11, 15, 25, 0.88)", border: "rgba(239, 68, 68, 0.7)", text: "#F87171", glow: "rgba(239, 68, 68, 0.4)" }
+          }
+        ];
+
+        stages.forEach(st => {
+          const metrics = ctx.measureText(st.text);
+          const tw = metrics.width;
+          const padX = isMobile ? 8 : 10;
+          const badgeW = tw + padX * 2;
+          const badgeH = isMobile ? 20 : 22;
+          const bx = st.x;
+          const by = st.y;
+
+          // Dibujar cápsula/badge con fondo oscuro y resplandor
+          ctx.shadowColor = st.theme.glow;
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = st.theme.bg;
+          ctx.strokeStyle = st.theme.border;
+          ctx.lineWidth = 1.5;
+
+          drawRoundedRectPath(ctx, bx, by, badgeW, badgeH, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          // Desactivar sombra para texto hipernítido
+          ctx.shadowBlur = 0;
+
+          // Dibujar texto resaltado
+          ctx.fillStyle = st.theme.text;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(st.text, bx + padX, by + badgeH / 2 + 0.5);
+        });
+
+        ctx.restore();
+      }
+
+      function drawRoundedRectPath(c, x, y, width, height, radius) {
+        c.beginPath();
+        if (c.roundRect) {
+          c.roundRect(x, y, width, height, radius);
+        } else {
+          c.moveTo(x + radius, y);
+          c.lineTo(x + width - radius, y);
+          c.arcTo(x + width, y, x + width, y + radius, radius);
+          c.lineTo(x + width, y + height - radius);
+          c.arcTo(x + width, y + height, x + width - radius, y + height, radius);
+          c.lineTo(x + radius, y + height);
+          c.arcTo(x, y + height, x, y + height - radius, radius);
+          c.lineTo(x, y + radius);
+          c.arcTo(x, y, x + radius, y, radius);
+          c.closePath();
+        }
+      }
+
+      // Iniciar al cargar el documento
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
