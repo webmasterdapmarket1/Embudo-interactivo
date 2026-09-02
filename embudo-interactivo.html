@@ -1,10 +1,10 @@
-<!-- Fuente Google Fonts (Urbanist + Plus Jakarta Sans para estética SaaS moderna) -->
+<!-- Fuente Google Fonts (Urbanist para títulos y textos; Syne máx peso 600 para énfasis y botones) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Urbanist:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600&family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Urbanist:wght@600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@500;600&family=Urbanist:wght@400;500;600;700;800;900&display=swap');
 
     /* ==========================================================================
        VARIABLES Y RESET
@@ -41,7 +41,8 @@
       --radius-sm: 8px;
       
       --font-display: 'Urbanist', -apple-system, sans-serif;
-      --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      --font-body: 'Urbanist', -apple-system, sans-serif;
+      --font-emphasis: 'Syne', -apple-system, sans-serif;
     }
 
     /* Reset acotado exclusivamente dentro del widget para integración limpia en Elementor */
@@ -65,7 +66,8 @@
       background: none;
       border: none;
       cursor: pointer;
-      font: inherit;
+      font-family: var(--font-emphasis);
+      font-weight: 600;
       color: inherit;
       outline: none;
     }
@@ -281,9 +283,9 @@
       border: none;
       padding: 8px 18px;
       border-radius: 999px;
-      font-family: var(--font-body);
+      font-family: var(--font-emphasis);
       font-size: 13px;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--text-muted);
       cursor: pointer;
       display: flex;
@@ -457,8 +459,9 @@
     }
 
     .arena-banner-action {
+      font-family: var(--font-emphasis);
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 600;
       color: #818CF8;
       display: flex;
       align-items: center;
@@ -650,9 +653,10 @@
       border: none;
       padding: 12px 24px;
       border-radius: 999px;
-      font-family: var(--font-body);
+      font-family: var(--font-emphasis);
       font-size: 14px;
-      font-weight: 800;
+      font-weight: 600;
+      letter-spacing: 0.01em;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -1754,7 +1758,7 @@
         } else {
           // Indicador de bloqueo / goteo lento
           ctx.fillStyle = "rgba(239, 68, 68, 0.8)";
-          ctx.font = "700 10px 'Plus Jakarta Sans', sans-serif";
+          ctx.font = "700 10px 'Urbanist', sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("⬇ GOTEO LENTO (1 A 1)", centerX, bottomY + 24);
         }
@@ -1894,7 +1898,7 @@
         const stage2Y = topY + (bottomY - topY) * 0.70;
 
         const fontHeight = isMobile ? 10 : 11;
-        ctx.font = `800 ${fontHeight}px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif`;
+        ctx.font = `800 ${fontHeight}px 'Urbanist', system-ui, -apple-system, sans-serif`;
 
         const stages = [
           {
