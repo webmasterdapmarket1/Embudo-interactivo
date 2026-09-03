@@ -168,9 +168,8 @@
 
     /* Controles de Configuración en Header */
     .header-controls {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 24px;
+      display: flex;
+      justify-content: center;
       align-items: center;
       margin-top: 24px;
       padding-top: 20px;
@@ -181,6 +180,9 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      flex: 1;
+      min-width: 280px;
+      max-width: 340px;
     }
 
     .slider-header {
@@ -260,7 +262,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      align-items: flex-end;
+      align-items: center;
     }
 
     .mode-toggle-pill {
@@ -480,13 +482,15 @@
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 24px;
     }
 
     .dashboard-title-group {
       display: flex;
       flex-direction: column;
       gap: 2px;
+      flex: 1;
+      min-width: 250px;
     }
 
     .dash-title {
@@ -683,12 +687,6 @@
       .metrics-grid {
         grid-template-columns: repeat(2, 1fr);
       }
-      .header-controls {
-        grid-template-columns: 1fr;
-      }
-      .mode-switch-container {
-        align-items: center;
-      }
     }
 
     @media (max-width: 600px) {
@@ -702,6 +700,10 @@
 
       .sim-header {
         padding: 20px 18px 16px;
+      }
+      
+      .slider-control-group {
+        max-width: 100%;
       }
 
       .sim-title {
@@ -788,30 +790,6 @@
       </p>
 
       <div class="header-controls">
-        <!-- Control de volumen mensual de leads -->
-        <div class="slider-control-group">
-          <div class="slider-header">
-            <label for="leads-range" class="slider-label">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              Volumen mensual de prospectos:
-            </label>
-            <div class="slider-value-display">
-              <span id="slider-leads-text">100</span>
-              <span>leads/mes</span>
-            </div>
-          </div>
-          <input 
-            type="range" 
-            id="leads-range" 
-            class="range-input" 
-            min="20" 
-            max="500" 
-            step="10" 
-            value="100" 
-            aria-label="Volumen mensual de prospectos"
-          >
-        </div>
-
         <!-- Toggle Selector de Modo (Equipo Humano vs Agente IA) -->
         <div class="mode-switch-container">
           <div class="mode-toggle-pill" role="tablist" aria-label="Modo de simulación">
@@ -886,6 +864,30 @@
           <p class="dash-desc" id="dash-mode-desc">
             Diagnóstico de atención con capacidad manual limitada y horarios de oficina.
           </p>
+        </div>
+        
+        <!-- Control de volumen mensual de leads (movido aquí) -->
+        <div class="slider-control-group">
+          <div class="slider-header">
+            <label for="leads-range" class="slider-label">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              Volumen mensual de prospectos:
+            </label>
+            <div class="slider-value-display">
+              <span id="slider-leads-text">100</span>
+              <span>leads/mes</span>
+            </div>
+          </div>
+          <input 
+            type="range" 
+            id="leads-range" 
+            class="range-input" 
+            min="20" 
+            max="500" 
+            step="10" 
+            value="100" 
+            aria-label="Volumen mensual de prospectos"
+          >
         </div>
       </div>
 
